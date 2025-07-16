@@ -24,10 +24,10 @@ This library is intended for use in cli programs with commands and options, such
 ```
 
 
-## define commands
+## configuration
 
 ```common-lisp
-(defparameter *commands-and-options*
+(defparameter *configuration*
   `(:commands ((:command "new-project"
                 :function ,#'new-project
                 :options ((:short-option "p"
@@ -55,13 +55,13 @@ This library is intended for use in cli programs with commands and options, such
 
 
 ```common-lisp
-(let ((c (getcmd args *command-and-options*)))
+(let ((c (getcmd '("new-project" "--path" "/app" "--database" "mysql") *configuration*)))
   (apply (getf c :function)
          (getf c :args)))
 ```
 
 
-# commands and options format
+# configuration format
 
 ...
 

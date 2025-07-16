@@ -21,25 +21,25 @@
 (defparameter *options* nil)
 
 
-(defun getcmd (args commands-and-options)
+(defun getcmd (args config)
   (let ((*function* nil)
         (*arguments* nil)
         (*options* nil))
-    (eval-cmd args commands-and-options)
+    (eval-cmd args config)
     `(:function ,*function*
       :args ,(flatten `,(list *arguments* *options*)))))
 
 
-(defun eval-cmd (args commands-and-options)
+(defun eval-cmd (args config)
   (cond ((null args)
          nil)
         ((and (null *function*)
               (command-p args))
-         (eval-command args commands-and-options))
+         (eval-command args config))
         ((option-p args)
-         (eval-option args commands-and-options))
+         (eval-option args config))
         (t
-         (eval-argument args commands-and-options))))
+         (eval-argument args config))))
 
 
 (defun command-p (args)
@@ -50,25 +50,25 @@
   (eq (aref (car args) 0) #\-))
 
 
-(defun eval-command (args commands-and-options)
+(defun eval-command (args config)
   (let* ((cmd (car args))
-         (command (loop for command in (getf commands-and-options :commands)
-                        when (string= cmd (getf command :command))
-                          return command)))
-    (when (not command)
-      (error "command not found:~A" command))
-    (setf *function* (getf command :function))
-    (eval-cmd (cdr args) command)))
+         (cmd-config (loop for cmd-config in (getf config :commands)
+                        when (string= cmd (getf cmd-config :command))
+                          return cmd-config)))
+    (when (not cmd-config)
+      (error "command not found:~A" cmd))
+    (setf *function* (getf cmd-config :function))
+    (eval-cmd (cdr args) cmd-config)))
 
 
-(defun eval-option (args commands-and-options)
+(defun eval-option (args config)
   (let* ((param (car args))
          (option-name (multiple-value-bind (m o)
                           (ppcre:scan-to-strings "^-([^-].*)$|^--(.+)$" param)
                         (when m
                           `(:short-option ,(aref o 0)
                             :long-option ,(aref o 1)))))
-         (option (loop for cmd-opt in (getf commands-and-options :options)
+         (option (loop for cmd-opt in (getf config :options)
                        when (or (string= (getf cmd-opt :short-option)
                                          (getf option-name :short-option))
                                 (string= (getf cmd-opt :long-option)
@@ -85,10 +85,10 @@
                       T)))
       (eval-cmd (if consume (cddr args)
                             (cdr args))
-                commands-and-options))))
+                config))))
 
 
-(defun eval-argument (args commands-and-options)
-  (appendf *arguments* (car args))
-  (eval-cmd (cdr args) commands-and-options))
+(defun eval-argument (args config)
+  (appendf *arguments* (list (car args)))
+  (eval-cmd (cdr args) config))
 
