@@ -21,12 +21,14 @@
 (defparameter *options* nil)
 
 
-(defun getcmd (args config)
+(defun getcmd (args config &optional default-function)
   (let ((*function* nil)
         (*arguments* nil)
         (*options* nil))
     (eval-cmd args config)
-    `(:function ,*function*
+    `(:function ,(if *function*
+                     *function*
+                     default-function)
       :args ,(flatten `,(list *arguments* *options*)))))
 
 
@@ -55,9 +57,8 @@
          (cmd-config (loop for cmd-config in (getf config :commands)
                         when (string= cmd (getf cmd-config :command))
                           return cmd-config)))
-    (when (not cmd-config)
-      (error "command not found:~A" cmd))
-    (setf *function* (getf cmd-config :function))
+    (when cmd-config
+      (setf *function* (getf cmd-config :function)))
     (eval-cmd (cdr args) cmd-config)))
 
 
