@@ -10,7 +10,7 @@
 (in-package #:getcmd-system)
 
 (defsystem getcmd
-  :version "0.1"
+  :version "0.2"
   :author "tamura shingo"
   :license "MIT"
   :depends-on (:alexandria
