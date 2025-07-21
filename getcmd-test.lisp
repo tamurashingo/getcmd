@@ -144,3 +144,38 @@
                                           (getf c :args)))))))
 
 
+
+(defpackage #:getcmd-test-strfunc
+  (:use #:cl)
+  (:export #:exp-func1))
+(in-package #:getcmd-test-strfunc)
+
+(defun exp-func1 (&rest rest)
+  (declare (ignore rest))
+  "func1!!")
+
+(defun in-func2 (&rest rest)
+  (declare (ignore rest))
+  "func2!!")
+
+(in-package #:getcmd-test)
+
+(defparameter *str-func*
+  '(:commands ((:command "func1"
+                :function "getcmd-test-strfunc:exp-func1")
+               (:command "func2"
+                :function "getcmd-test-strfunc::in-func2"))))
+
+
+(deftest function-as-string
+  (let ((c (getcmd '("func1") *str-func*)))
+    (ok (eq #'getcmd-test-strfunc:exp-func1 (getf c :function)))
+    (ok (string= "func1!!" (apply (getf c :function)
+                                (getf c :args)))))
+
+  (let ((c (getcmd '("func2") *str-func*)))
+    (ok (eq #'getcmd-test-strfunc::in-func2 (getf c :function)))
+    (ok (string= "func2!!" (apply (getf c :function)
+                                  (getf c :args))))))
+
+

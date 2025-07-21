@@ -26,10 +26,13 @@
         (*arguments* nil)
         (*options* nil))
     (eval/cmd-option-arg args config)
-    `(:function ,(if *function*
-                     *function*
-                     default-function)
-      :args ,(flatten `,(list *arguments* *options*)))))
+    (let ((fn (if *function*
+                  (if (stringp *function*)
+                      (symbol-function (read-from-string *function*))
+                      *function*)
+                  default-function)))
+      `(:function ,fn
+        :args ,(flatten `,(list *arguments* *options*))))))
 
 
 ;; ----------------------------------------

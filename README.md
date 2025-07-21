@@ -48,7 +48,7 @@ This library is intended for use in cli programs with commands and options, such
                                        :keyword :no-migration
                                        :consume nil)))
                            (:command "migration"
-                            :function ,#'generate/migration))))))
+                            :function "generate/migration"))))))
 ```
 
 ## parse and run
@@ -113,9 +113,13 @@ option-def := :short-option string
 
 ## `:command`
 
+- type: string
+
 This is the command name specified in the argument.
 
 ## `:function`
+
+- type: function or string
 
 This is a function corresponding to the specified command.
 
@@ -135,6 +139,8 @@ arguments and keyword parameters must be defined to accept them.
 
 ## `:short-option`
 
+- type: string
+
 
 This is an option name specified with a single hyphen.
 
@@ -143,12 +149,16 @@ It says `short`, but it can be longer.
 
 ## `:long-option`
 
+- type: string
+
 This is an option name specified with a double hyphen.
 
 It says `long`, but it can be short.
 
 
 ## `:keyword`
+
+- type: keyword
 
 This is the keyword used when passing the option to the function as a keyword parameter.
 
@@ -173,6 +183,8 @@ When there is a function like the one above, it is defined as follows.
 
 ## `:consume`
 
+- type: T or NIL
+
 If T, consume the parameter; if nil or unspecified, do not consume the parameter.
 
 In the case of T, pass the option as a string to the function.
@@ -180,6 +192,8 @@ If NIL or unspecified, pass the option as T or NIL to the function.
 
 
 ## `:converter`
+
+- type: function
 
 Convert parameters.
 
@@ -193,7 +207,5 @@ Copyright (c) 2025 tamura shingo
 # License
 
 Licensed under the MIT License.
-
-
 
 
