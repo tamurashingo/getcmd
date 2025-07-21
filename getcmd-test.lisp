@@ -60,12 +60,12 @@
   (testing "command not exists - without default function"
     (let ((c (getcmd '("test") *config*)))
       (ok (null (getf c :function)))
-      (ok (equal '() (getf c :args)))))
+      (ok (equal '("test") (getf c :args)))))
 
   (testing "command not exists - with default function"
     (let ((c (getcmd '("test") *config* #'help)))
       (ok (eq #'help (getf c :function)))
-      (ok (equal '() (getf c :args))))))
+      (ok (equal '("test") (getf c :args))))))
 
 
 (deftest no-option-test
@@ -96,5 +96,51 @@
       (ok (equal '("3" :base 4) (getf c :args)))
       (ok (= 7 (apply (getf c :function)
                       (getf c :args)))))))
+
+
+(defun db/help (&rest rest)
+  (declare (ignore rest))
+  "db migrate [up|down]")
+
+(defun db/migrate/up (&rest rest)
+  (declare (ignore rest))
+  "db/migrate/up")
+
+(defun db/migrate/down (&rest rest)
+  (declare (ignore rest))
+  "db/migrate/down")
+
+(defparameter *ommit-config*
+  `(:commands ((:command "db"
+                :function ,#'db/help
+                :commands ((:command "migrate"
+                            :function ,#'db/migrate/up
+                            :commands ((:command "up"
+                                        :function ,#'db/migrate/up)
+                                       (:command "down"
+                                        :function ,#'db/migrate/down))))))))
+
+(deftest subcommand
+  (testing "exists subcommand"
+    (let ((c (getcmd '("db" "migrate" "up") *ommit-config*)))
+      (ok (eq #'db/migrate/up (getf c :function)))
+      (ok (string= "db/migrate/up" (apply (getf c :function)
+                                          (getf c :args)))))
+
+    (let ((c (getcmd '("db" "migrate" "down") *ommit-config*)))
+      (ok (eq #'db/migrate/down (getf c :function)))
+      (ok (string= "db/migrate/down" (apply (getf c :function)
+                                            (getf c :args))))))
+
+  (testing "ommit subcommand"
+    (let ((c (getcmd '("db") *ommit-config*)))
+      (ok (eq #'db/help (getf c :function)))
+      (ok (string= "db migrate [up|down]" (apply (getf c :function)
+                                                 (getf c :args)))))
+
+    (let ((c (getcmd '("db" "migrate") *ommit-config*)))
+      (ok (eq #'db/migrate/up (getf c :function)))
+      (ok (string= "db/migrate/up" (apply (getf c :function)
+                                          (getf c :args)))))))
 
 
