@@ -25,71 +25,80 @@
   (let ((*function* nil)
         (*arguments* nil)
         (*options* nil))
-    (eval-cmd args config)
+    (eval/cmd-option-arg args config)
     `(:function ,(if *function*
                      *function*
                      default-function)
       :args ,(flatten `,(list *arguments* *options*)))))
 
 
-(defun eval-cmd (args config)
+;; ----------------------------------------
+
+(defun eval/cmd-option-arg (args config)
   (cond ((null args)
          nil)
-        ((and (null *function*)
-              (command-p args))
-         (eval-command args config))
-        ((option-p args)
-         (eval-option args config))
+        ((check/cmd-p args config)
+         (apply/cmd args config))
+        ((check/option-p args config)
+         (apply/option args config))
         (t
-         (eval-argument args config))))
+         (apply/arg args config))))
 
+;; ----------------------------------------
 
-(defun command-p (args)
-  (ppcre:scan "^[a-zA-Z].+$" (car args)))
+(defun check/cmd-p (args config)
+  (loop for cmd-conf in (getf config :commands)
+        when (string= (getf cmd-conf :command)
+                      (car args))
+          return T))
 
-
-(defun option-p (args)
+(defun check/option-p (args config)
+  (declare (ignore config))
   (eq (aref (car args) 0) #\-))
 
 
-(defun eval-command (args config)
-  (let* ((cmd (car args))
-         (cmd-config (loop for cmd-config in (getf config :commands)
-                        when (string= cmd (getf cmd-config :command))
-                          return cmd-config)))
-    (when cmd-config
-      (setf *function* (getf cmd-config :function)))
-    (eval-cmd (cdr args) cmd-config)))
+;; ----------------------------------------
+
+(defun apply/cmd (args config)
+  (let ((cmdopt (loop for cmd in (getf config :commands)
+                      for cmd-name = (getf cmd :command)
+                      when (string= (car args) cmd-name)
+                        return cmd)))
+    (assert cmdopt)
+    (setf *function* (getf cmdopt :function))
+    (eval/cmd-option-arg (cdr args) cmdopt)))
 
 
-(defun eval-option (args config)
-  (let* ((param (car args))
-         (option-name (multiple-value-bind (m o)
-                          (ppcre:scan-to-strings "^-([^-].*)$|^--(.+)$" param)
-                        (when m
-                          `(:short-option ,(aref o 0)
-                            :long-option ,(aref o 1)))))
+(defun apply/option (args config)
+  (let* ((arg-opt (multiple-value-bind (m o)
+                      (ppcre:scan-to-strings "^-([^-].*)$|^--(.+)$" (car args))
+                    (when m
+                      `(:short-option ,(aref o 0)
+                        :long-option ,(aref o 1)))))
          (option (loop for cmd-opt in (getf config :options)
                        when (or (string= (getf cmd-opt :short-option)
-                                         (getf option-name :short-option))
+                                         (getf arg-opt :short-option))
                                 (string= (getf cmd-opt :long-option)
-                                         (getf option-name :long-option)))
+                                         (getf arg-opt :long-option)))
                          return cmd-opt)))
+    (when (null option)
+      (error "option not found: ~A" (car args)))
     (let ((keyword (getf option :keyword))
           (consume (getf option :consume nil))
           (converter (getf option :converter #'identity)))
+      (when (null (cadr args))
+        (error "option parameter not found. optoion: ~A" (car args)))
 
       (appendf *options*
                `(,keyword
                  ,(if consume
                       (funcall converter (cadr args))
                       T)))
-      (eval-cmd (if consume (cddr args)
-                            (cdr args))
-                config))))
 
+      (eval/cmd-option-arg (if consume (cddr args)
+                                       (cdr args))
+                           config))))
 
-(defun eval-argument (args config)
+(defun apply/arg (args config)
   (appendf *arguments* (list (car args)))
-  (eval-cmd (cdr args) config))
-
+  (eval/cmd-option-arg (cdr args) config))
