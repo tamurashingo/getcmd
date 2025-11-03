@@ -89,7 +89,7 @@
     (let ((keyword (getf option :keyword))
           (consume (getf option :consume nil))
           (converter (getf option :converter #'identity)))
-      (when (null (cadr args))
+      (when (and consume (null (cadr args)))
         (error "option parameter not found. optoion: ~A" (car args)))
 
       (appendf *options*
