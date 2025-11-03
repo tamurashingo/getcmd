@@ -98,6 +98,43 @@
                       (getf c :args)))))))
 
 
+(defun flag-test-func (arg &key flag)
+  (format nil "arg:~A flag:~A" arg flag))
+
+(defparameter *flag-config*
+  `(:commands ((:command "test"
+                :function ,#'flag-test-func
+                :options ((:short-option "f"
+                           :long-option "flag"
+                           :keyword :flag
+                           :consume nil))))))
+
+(deftest flag-option-test
+  (testing "flag option followed by argument"
+    (let ((c (getcmd '("test" "--flag" "argument") *flag-config*)))
+      (ok (eq #'flag-test-func (getf c :function)))
+      (ok (equal '("argument" :flag t) (getf c :args)))
+      (ok (string= "arg:argument flag:T" (apply (getf c :function)
+                                                 (getf c :args))))))
+
+  (testing "flag option followed by multiple arguments"
+    (let ((c (getcmd '("test" "--flag" "arg1" "arg2") *flag-config*)))
+      (ok (eq #'flag-test-func (getf c :function)))
+      (ok (equal '("arg1" "arg2" :flag t) (getf c :args)))))
+
+  (testing "flag option as last argument (bug case)"
+    (let ((c (getcmd '("test" "argument" "--flag") *flag-config*)))
+      (ok (eq #'flag-test-func (getf c :function)))
+      (ok (equal '("argument" :flag t) (getf c :args)))
+      (ok (string= "arg:argument flag:T" (apply (getf c :function)
+                                                 (getf c :args))))))
+
+  (testing "flag option alone (no command arguments)"
+    (let ((c (getcmd '("test" "--flag") *flag-config*)))
+      (ok (eq #'flag-test-func (getf c :function)))
+      (ok (equal '(:flag t) (getf c :args))))))
+
+
 (defun db/help (&rest rest)
   (declare (ignore rest))
   "db migrate [up|down]")
