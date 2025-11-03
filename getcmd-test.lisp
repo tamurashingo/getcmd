@@ -216,3 +216,46 @@
                                   (getf c :args))))))
 
 
+(defun option-only-test-func (&key database path)
+  (format nil "database:~A path:~A" database path))
+
+(defparameter *only-long-option-config*
+  `(:commands ((:command "message"
+                :function ,#'option-only-test-func
+                :options ((:long-option "database"
+                           :keyword :database)
+                          (:long-option "path"
+                           :keyword :path))))))
+
+(defparameter *only-short-option-config*
+  `(:commands ((:command "message"
+                :function ,#'option-only-test-func
+                :options ((:short-option "d"
+                           :keyword :database)
+                          (:short-option "p"
+                           :keyword :path))))))
+
+(deftest option-matching-test
+  (testing "only long-option defined - valid option"
+    (let ((c (getcmd '("message" "--database") *only-long-option-config*)))
+      (ok (eq #'option-only-test-func (getf c :function)))
+      (ok (equal '(:database t) (getf c :args)))))
+
+  (testing "only long-option defined - invalid option should error"
+    (ok (signals (getcmd '("message" "--1") *only-long-option-config*) 'error)))
+
+  (testing "only long-option defined - undefined option should error"
+    (ok (signals (getcmd '("message" "--unknown") *only-long-option-config*) 'error)))
+
+  (testing "only short-option defined - valid option"
+    (let ((c (getcmd '("message" "-d") *only-short-option-config*)))
+      (ok (eq #'option-only-test-func (getf c :function)))
+      (ok (equal '(:database t) (getf c :args)))))
+
+  (testing "only short-option defined - invalid short option should error"
+    (ok (signals (getcmd '("message" "-x") *only-short-option-config*) 'error)))
+
+  (testing "only short-option defined - long option format should error"
+    (ok (signals (getcmd '("message" "--database") *only-short-option-config*) 'error))))
+
+
