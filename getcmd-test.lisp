@@ -259,3 +259,71 @@
     (ok (signals (getcmd '("message" "--database") *only-short-option-config*) 'error))))
 
 
+(defun show-dir (&key dir-list)
+  (format nil "dirs:~{~A~^,~}" dir-list))
+
+(defun show-numbers (&key num-list)
+  (format nil "numbers:~{~A~^,~}" num-list))
+
+(defparameter *multiple-option-config*
+  `(:commands ((:command "show-dir"
+                :function ,#'show-dir
+                :options ((:short-option "d"
+                           :long-option "dir"
+                           :keyword :dir-list
+                           :consume t
+                           :multiple t))))))
+
+(defparameter *multiple-with-converter-config*
+  `(:commands ((:command "show-numbers"
+                :function ,#'show-numbers
+                :options ((:short-option "n"
+                           :long-option "num"
+                           :keyword :num-list
+                           :consume t
+                           :multiple t
+                           :converter ,#'parse-integer))))))
+
+(defparameter *invalid-multiple-config*
+  `(:commands ((:command "test"
+                :function ,#'show-dir
+                :options ((:short-option "f"
+                           :long-option "flag"
+                           :keyword :flag
+                           :consume nil
+                           :multiple t))))))
+
+(deftest multiple-option-test
+  (testing "multiple option - single value"
+    (let ((c (getcmd '("show-dir" "--dir" "a") *multiple-option-config*)))
+      (ok (eq #'show-dir (getf c :function)))
+      (ok (equal '(:dir-list ("a")) (getf c :args)))
+      (ok (string= "dirs:a" (apply (getf c :function) (getf c :args))))))
+
+  (testing "multiple option - multiple long options"
+    (let ((c (getcmd '("show-dir" "--dir" "a" "--dir" "b") *multiple-option-config*)))
+      (ok (eq #'show-dir (getf c :function)))
+      (ok (equal '(:dir-list ("a" "b")) (getf c :args)))
+      (ok (string= "dirs:a,b" (apply (getf c :function) (getf c :args))))))
+
+  (testing "multiple option - mixed short and long options"
+    (let ((c (getcmd '("show-dir" "--dir" "a" "--dir" "b" "-d" "c") *multiple-option-config*)))
+      (ok (eq #'show-dir (getf c :function)))
+      (ok (equal '(:dir-list ("a" "b" "c")) (getf c :args)))
+      (ok (string= "dirs:a,b,c" (apply (getf c :function) (getf c :args))))))
+
+  (testing "multiple option with converter"
+    (let ((c (getcmd '("show-numbers" "-n" "1" "-n" "2" "--num" "3") *multiple-with-converter-config*)))
+      (ok (eq #'show-numbers (getf c :function)))
+      (ok (equal '(:num-list (1 2 3)) (getf c :args)))
+      (ok (string= "numbers:1,2,3" (apply (getf c :function) (getf c :args))))))
+
+  (testing "multiple option - with arguments interleaved"
+    (let ((c (getcmd '("show-dir" "arg1" "--dir" "a" "arg2" "--dir" "b") *multiple-option-config*)))
+      (ok (eq #'show-dir (getf c :function)))
+      (ok (equal '("arg1" "arg2" :dir-list ("a" "b")) (getf c :args)))))
+
+  (testing "multiple option requires consume to be true"
+    (ok (signals (getcmd '("test" "--flag") *invalid-multiple-config*) 'error))))
+
+

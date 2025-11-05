@@ -21,6 +21,16 @@
 (defparameter *options* nil)
 
 
+(defun process-multiple-options (options)
+  "Process options and expand :multiple-values markers into lists"
+  (loop for (key value) on options by #'cddr
+        collect key
+        collect (if (and (listp value)
+                         (eq (car value) :multiple-values))
+                    (cadr value)
+                    value)))
+
+
 (defun getcmd (args config &optional default-function)
   (let ((*function* nil)
         (*arguments* nil)
@@ -30,9 +40,10 @@
                   (if (stringp *function*)
                       (symbol-function (read-from-string *function*))
                       *function*)
-                  default-function)))
+                  default-function))
+          (processed-options (process-multiple-options *options*)))
       `(:function ,fn
-        :args ,(flatten `,(list *arguments* *options*))))))
+        :args ,(append *arguments* processed-options)))))
 
 
 ;; ----------------------------------------
@@ -90,15 +101,25 @@
       (error "option not found: ~A" (car args)))
     (let ((keyword (getf option :keyword))
           (consume (getf option :consume nil))
+          (multiple (getf option :multiple nil))
           (converter (getf option :converter #'identity)))
+      (when (and multiple (not consume))
+        (error ":multiple option requires :consume to be T. option: ~A" (car args)))
       (when (and consume (null (cadr args)))
         (error "option parameter not found. optoion: ~A" (car args)))
 
-      (appendf *options*
-               `(,keyword
-                 ,(if consume
-                      (funcall converter (cadr args))
-                      T)))
+      (if multiple
+          (let ((existing (getf *options* keyword)))
+            (if existing
+                (setf (getf *options* keyword)
+                      `(:multiple-values ,(append (cadr existing) (list (funcall converter (cadr args))))))
+                (appendf *options*
+                         `(,keyword (:multiple-values (,(funcall converter (cadr args))))))))
+          (appendf *options*
+                   `(,keyword
+                     ,(if consume
+                          (funcall converter (cadr args))
+                          T))))
 
       (eval/cmd-option-arg (if consume (cddr args)
                                        (cdr args))

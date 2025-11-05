@@ -108,6 +108,7 @@ option-def := :short-option string
             | :keyword keyword
             | :consume [ T | nil ]
             | :converter function
+            | :multiple [ T | nil ]
 
 ```
 
@@ -199,6 +200,52 @@ Convert parameters.
 
 Parameters are passed as strings, but if you want to convert them to numbers or keywords
 before passing them, specify that here.
+
+
+## `:multiple`
+
+- type: T or NIL
+
+If T, allows the same option to be specified multiple times, and collects all values into a list.
+If NIL or unspecified, the option can only be specified once.
+
+When `:multiple` is T, `:consume` must also be T.
+
+Example:
+
+```common-lisp
+(defun show-dir (&key dir-list)
+  (loop for dir in dir-list
+    do (format t "~S~%" dir)))
+
+(defparameter *config*
+  `(:commands ((:command "show-dir"
+                :function ,#'show-dir
+                :options ((:short-option "d"
+                           :long-option "dir"
+                           :keyword :dir-list
+                           :consume t
+                           :multiple t))))))
+
+;; Usage:
+;; cmd show-dir --dir a --dir b -d c
+;; => (show-dir :dir-list '("a" "b" "c"))
+```
+
+If `:converter` is specified with `:multiple`, the converter is applied to each individual value:
+
+```common-lisp
+(:options ((:short-option "n"
+            :long-option "num"
+            :keyword :num-list
+            :consume t
+            :multiple t
+            :converter ,#'parse-integer)))
+
+;; Usage:
+;; cmd --num 1 --num 2 -n 3
+;; => :num-list (1 2 3)
+```
 
 # Copyright
 
