@@ -3,7 +3,56 @@
 Get command and options from command line arguments.\
 This library is intended for use in cli programs with commands and options, such as `rails` or `docker` commands.
 
+This library is particularly useful for creating Roswell scripts that need to parse command line arguments.
+
 # usage
+
+## Roswell script example
+
+This is a simple example of using getcmd in a Roswell script:
+
+```common-lisp
+#!/bin/sh
+#|-*- mode:lisp -*-|#
+#|
+exec ros -Q -- $0 "$@"
+|#
+
+(ql:quickload :getcmd :silent t)
+
+(defun hello (name &key greeting)
+  (format t "~A, ~A!~%" (or greeting "Hello") name))
+
+(defun goodbye (name)
+  (format t "Goodbye, ~A!~%" name))
+
+(defparameter *config*
+  `(:commands ((:command "hello"
+                :function ,#'hello
+                :options ((:short-option "g"
+                           :long-option "greeting"
+                           :keyword :greeting
+                           :consume t)))
+               (:command "goodbye"
+                :function ,#'goodbye))))
+
+(defun main (&rest argv)
+  (let ((c (getcmd:getcmd argv *config*)))
+    (when (getf c :function)
+      (apply (getf c :function) (getf c :args)))))
+```
+
+Usage:
+```bash
+$ ./script.ros hello World
+Hello, World!
+
+$ ./script.ros hello World --greeting Hi
+Hi, World!
+
+$ ./script.ros goodbye World
+Goodbye, World!
+```
 
 ## define functions
 
@@ -99,6 +148,7 @@ command-def := :command string
              | :commands command-list
              | :function function
              | :options option-list
+             | :arguments-as-list [ T | nil ]
 
 
 option-list := ( option-def * )
@@ -245,6 +295,83 @@ If `:converter` is specified with `:multiple`, the converter is applied to each 
 ;; Usage:
 ;; cmd --num 1 --num 2 -n 3
 ;; => :num-list (1 2 3)
+```
+
+## `:arguments-as-list`
+
+- type: T or NIL
+
+If T, all positional arguments are collected into a single list before being passed to the function.
+This is useful when the function has a `&rest` parameter or expects a list of arguments as its first parameter.
+
+When `:arguments-as-list` is nil or not specified (default), positional arguments
+are passed individually as they have been.
+
+### Background
+
+In CLI applications, it's common to write functions that accept a variable number of files or items:
+
+```common-lisp
+(defun show-files (files &key verbose)
+  ;; files is expected to be a list
+  (loop for file in files
+        do (format t "~A~%" file)))
+```
+
+Without `:arguments-as-list`, positional arguments would be passed individually:
+```common-lisp
+;; cmd show-files file1.txt file2.txt
+;; => (show-files "file1.txt" "file2.txt")  ; Error: too many arguments
+```
+
+With `:arguments-as-list t`, all positional arguments are collected into a list:
+```common-lisp
+;; cmd show-files file1.txt file2.txt
+;; => (show-files ("file1.txt" "file2.txt"))  ; Correct!
+```
+
+This makes it easy to handle commands that process multiple items without having to manually collect them.
+
+### Example with `:arguments-as-list t`:
+
+```common-lisp
+(defun show-files (files &key verbose)
+  (loop for file in files
+        do (if verbose
+               (format t "File: ~A~%" file)
+               (format t "~A~%" file))))
+
+(defparameter *config*
+  `(:commands ((:command "show-files"
+                :function ,#'show-files
+                :arguments-as-list t
+                :options ((:short-option "v"
+                           :long-option "verbose"
+                           :keyword :verbose
+                           :consume nil))))))
+
+;; Usage:
+;; cmd show-files --verbose file1.txt file2.txt
+;; => (show-files ("file1.txt" "file2.txt") :verbose t)
+
+;; With no files:
+;; cmd show-files --verbose
+;; => (show-files nil :verbose t)
+```
+
+### Example without `:arguments-as-list` (default):
+
+```common-lisp
+(defun add (x y)
+  (+ (parse-integer x) (parse-integer y)))
+
+(defparameter *config*
+  `(:commands ((:command "add"
+                :function ,#'add))))
+
+;; Usage:
+;; cmd add 3 4
+;; => (add "3" "4")
 ```
 
 # Copyright

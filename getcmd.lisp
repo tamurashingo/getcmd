@@ -19,6 +19,7 @@
 (defparameter *function* nil)
 (defparameter *arguments* nil)
 (defparameter *options* nil)
+(defparameter *current-command-config* nil)
 
 
 (defun process-multiple-options (options)
@@ -34,7 +35,8 @@
 (defun getcmd (args config &optional default-function)
   (let ((*function* nil)
         (*arguments* nil)
-        (*options* nil))
+        (*options* nil)
+        (*current-command-config* nil))
     (eval/cmd-option-arg args config)
     (let ((fn (if *function*
                   (if (stringp *function*)
@@ -43,7 +45,11 @@
                   default-function))
           (processed-options (process-multiple-options *options*)))
       `(:function ,fn
-        :args ,(append *arguments* processed-options)))))
+        :args ,(if (getf *current-command-config* :arguments-as-list)
+                   ;; arguments-as-list: 位置引数をリストにまとめる
+                   (cons *arguments* processed-options)
+                   ;; 通常: 位置引数を展開
+                   (append *arguments* processed-options))))))
 
 
 ;; ----------------------------------------
@@ -80,6 +86,7 @@
                         return cmd)))
     (assert cmdopt)
     (setf *function* (getf cmdopt :function))
+    (setf *current-command-config* cmdopt)
     (eval/cmd-option-arg (cdr args) cmdopt)))
 
 
