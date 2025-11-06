@@ -327,3 +327,73 @@
     (ok (signals (getcmd '("test" "--flag") *invalid-multiple-config*) 'error))))
 
 
+(defun args-list-test-func (args &key key1)
+  (list args key1))
+
+(defparameter *args-list-config*
+  `(:commands ((:command "test"
+                :function ,#'args-list-test-func
+                :arguments-as-list t
+                :options ((:long-option "key1"
+                           :keyword :key1
+                           :consume t))))))
+
+(deftest arguments-as-list-test
+  (testing "no parameters with option"
+    (let ((c (getcmd '("test" "--key1" "val") *args-list-config*)))
+      (ok (eq #'args-list-test-func (getf c :function)))
+      (ok (equal '(nil :key1 "val") (getf c :args)))
+      (ok (equal '(nil "val") (apply (getf c :function) (getf c :args))))))
+
+  (testing "one parameter with option"
+    (let ((c (getcmd '("test" "arg1" "--key1" "val") *args-list-config*)))
+      (ok (eq #'args-list-test-func (getf c :function)))
+      (ok (equal '(("arg1") :key1 "val") (getf c :args)))
+      (ok (equal '(("arg1") "val") (apply (getf c :function) (getf c :args))))))
+
+  (testing "multiple parameters with option"
+    (let ((c (getcmd '("test" "arg1" "arg2" "--key1" "val") *args-list-config*)))
+      (ok (eq #'args-list-test-func (getf c :function)))
+      (ok (equal '(("arg1" "arg2") :key1 "val") (getf c :args)))
+      (ok (equal '(("arg1" "arg2") "val") (apply (getf c :function) (getf c :args))))))
+
+  (testing "parameters only (no options)"
+    (let ((c (getcmd '("test" "arg1" "arg2") *args-list-config*)))
+      (ok (eq #'args-list-test-func (getf c :function)))
+      (ok (equal '(("arg1" "arg2")) (getf c :args)))
+      (ok (equal '(("arg1" "arg2") nil) (apply (getf c :function) (getf c :args))))))
+
+  (testing "no parameters and no options"
+    (let ((c (getcmd '("test") *args-list-config*)))
+      (ok (eq #'args-list-test-func (getf c :function)))
+      (ok (equal '(nil) (getf c :args)))
+      (ok (equal '(nil nil) (apply (getf c :function) (getf c :args)))))))
+
+
+(defun args-list-multiple-test-func (args &key exclude)
+  (list args exclude))
+
+(defparameter *args-list-multiple-config*
+  `(:commands ((:command "test"
+                :function ,#'args-list-multiple-test-func
+                :arguments-as-list t
+                :options ((:long-option "exclude"
+                           :keyword :exclude
+                           :consume t
+                           :multiple t))))))
+
+(deftest arguments-as-list-with-multiple-test
+  (testing "arguments-as-list with multiple option"
+    (let ((c (getcmd '("test" "arg1" "--exclude" "*.tmp" "--exclude" "*.bak") *args-list-multiple-config*)))
+      (ok (eq #'args-list-multiple-test-func (getf c :function)))
+      (ok (equal '(("arg1") :exclude ("*.tmp" "*.bak")) (getf c :args)))
+      (ok (equal '(("arg1") ("*.tmp" "*.bak")) (apply (getf c :function) (getf c :args))))))
+
+  (testing "arguments-as-list with multiple parameters and multiple option"
+    (let ((c (getcmd '("test" "arg1" "arg2" "--exclude" "*.tmp" "--exclude" "*.bak") *args-list-multiple-config*)))
+      (ok (eq #'args-list-multiple-test-func (getf c :function)))
+      (ok (equal '(("arg1" "arg2") :exclude ("*.tmp" "*.bak")) (getf c :args)))
+      (ok (equal '(("arg1" "arg2") ("*.tmp" "*.bak")) (apply (getf c :function) (getf c :args)))))))
+
+
+
