@@ -46,9 +46,9 @@
           (processed-options (process-multiple-options *options*)))
       `(:function ,fn
         :args ,(if (getf *current-command-config* :arguments-as-list)
-                   ;; arguments-as-list: 位置引数をリストにまとめる
+                   ;; arguments-as-list: collect positional arguments into a list
                    (cons *arguments* processed-options)
-                   ;; 通常: 位置引数を展開
+                   ;; normal: expand positional arguments
                    (append *arguments* processed-options))))))
 
 
